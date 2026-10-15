@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tonely"
+version = "0.1.0"
+description = "Multimodal audio sentiment & emotion analysis with a live, playable timeline."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Sivateja Trikutam" }]
+keywords = ["audio", "sentiment-analysis", "emotion-recognition", "speech-emotion-recognition", "music-emotion", "whisper", "wav2vec2", "clap"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Sound/Audio :: Analysis",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "numpy>=1.26",
+  "scipy>=1.11",
+  "librosa>=0.10",
+  "av>=12",
+  "soundfile>=0.12",
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+# Neural analyzers (recommended). Without them tonely runs acoustic-only.
+ml = [
+  "torch>=2.2",
+  "transformers>=4.40",
+  "faster-whisper>=1.0",
+]
+dev = ["pytest>=8"]
+
+[project.scripts]
+tonely = "tonely.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["tonely*"]
+
+[tool.setuptools.package-data]
+tonely = ["web/*"]

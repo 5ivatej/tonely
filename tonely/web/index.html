@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tonely</title>
+  <meta name="description" content="Multimodal audio sentiment & emotion analysis with a live timeline.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23c98500'/><path d='M6 17c3-6 6 6 10 0s7 6 10 0' stroke='%231a1a19' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14"/><path d="M6 17c3-6 6 6 10 0s7 6 10 0"/></svg>
+      <span class="wordmark">tonely</span>
+      <span class="tagline">hear how it feels</span>
+    </div>
+    <div class="top-actions">
+      <span id="device-chip" class="chip" hidden></span>
+      <button id="btn-new" class="btn ghost" hidden>New file</button>
+      <button id="btn-export" class="btn ghost" hidden>Export JSON</button>
+      <button id="btn-theme" class="btn icon ghost" aria-label="Toggle theme" title="Toggle theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ upload ============ -->
+  <main id="view-upload" class="view">
+    <section class="hero-drop">
+      <h1>Drop in audio.<br><span class="muted">Watch its emotions move.</span></h1>
+      <p class="lede">tonely listens with five independent analyzers: the voice, the words, the music, the acoustics and the silence. It fuses them into one live emotional timeline you can play back.</p>
+      <label id="dropzone" class="dropzone" tabindex="0">
+        <input id="file-input" type="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.flac,.ogg,.opus,.aac,.webm,.mp4" hidden>
+        <svg viewBox="0 0 24 24" class="drop-icon" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <strong>Drop an audio file here</strong>
+        <span class="muted">or click to browse · mp3, wav, m4a, flac, ogg, opus, webm, mp4</span>
+      </label>
+      <ul class="channels">
+        <li><b>Voice</b><span>wav2vec2 speech-emotion models read tone of voice, both categorically and as valence/arousal</span></li>
+        <li><b>Words</b><span>Whisper transcribes (and translates), then RoBERTa reads emotion and sentiment in what's said</span></li>
+        <li><b>Sound</b><span>CLAP compares the audio against language descriptions of mood, for music and non-speech audio</span></li>
+        <li><b>Acoustics</b><span>loudness, brightness, pitch, tempo, key and mode give a model-free prosody read</span></li>
+        <li><b>Fusion</b><span>a Kalman smoother and a sticky HMM combine them, weighted by how confident each source is</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- ============ analyzing ============ -->
+  <main id="view-progress" class="view" hidden>
+    <section class="card progress-card">
+      <div class="progress-head">
+        <div>
+          <div class="eyebrow">Listening</div>
+          <h2 id="progress-file">file</h2>
+        </div>
+        <div id="progress-pct" class="pct">0%</div>
+      </div>
+      <div class="bar"><div id="progress-bar" class="bar-fill"></div></div>
+      <ol id="stage-list" class="stages"></ol>
+      <p class="muted small">The first run downloads models (~3 GB) and caches them. Later runs are much faster.</p>
+    </section>
+  </main>
+
+  <!-- ============ player ============ -->
+  <main id="view-player" class="view" hidden>
+    <section class="now card">
+      <button id="btn-play" class="play" aria-label="Start playback">
+        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+      </button>
+      <div class="now-main">
+        <div class="eyebrow"><span id="file-name">file</span> · <span id="clock">0:00 / 0:00</span></div>
+        <div class="now-emotion">
+          <span id="now-dot" class="dot big"></span>
+          <span id="now-label">Ready</span>
+          <span id="now-conf" class="conf"></span>
+        </div>
+        <div id="now-sub" class="now-sub muted">Press start. The graphs below are already mapped out, and playback runs through them.</div>
+      </div>
+      <div class="now-meters">
+        <div class="meter" title="Valence: unpleasant ↔ pleasant">
+          <span class="meter-label">Valence</span>
+          <div class="bipolar"><div id="m-val" class="bipolar-fill"></div></div>
+          <span id="m-val-n" class="meter-n">0.00</span>
+        </div>
+        <div class="meter" title="Arousal: calm ↔ energetic">
+          <span class="meter-label">Arousal</span>
+          <div class="bipolar"><div id="m-aro" class="bipolar-fill"></div></div>
+          <span id="m-aro-n" class="meter-n">0.00</span>
+        </div>
+        <div class="meter" title="Intensity: distance from neutral">
+          <span class="meter-label">Intensity</span>
+          <div class="unipolar"><div id="m-int" class="unipolar-fill"></div></div>
+          <span id="m-int-n" class="meter-n">0%</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card overview-card">
+      <div class="card-head">
+        <h3>Whole track</h3>
+        <div class="legend" id="legend"></div>
+      </div>
+      <canvas id="cv-overview" class="cv" height="132" aria-label="Overview of the whole track: waveform coloured by emotion, emotion segments, and key moments. Click to seek."></canvas>
+    </section>
+
+    <div class="grid-main">
+      <section class="card live-card">
+        <div class="card-head">
+          <h3>Live timeline</h3>
+          <div class="seg-ctrl" role="group" aria-label="Zoom">
+            <button data-zoom="10">10s</button><button data-zoom="24" class="on">24s</button><button data-zoom="60">60s</button>
+          </div>
+        </div>
+        <div class="series-key">
+          <span><i class="key-line"></i>Valence <em>(line colour = emotion)</em></span>
+          <span><i class="key-dash"></i>Arousal</span>
+          <span><i class="key-band"></i>Uncertainty</span>
+          <span class="muted">Faded right side = what's coming next</span>
+        </div>
+        <canvas id="cv-live" class="cv" height="220" aria-label="Scrolling valence and arousal chart around the playhead"></canvas>
+        <canvas id="cv-stream" class="cv" height="120" aria-label="Stacked emotion probabilities around the playhead"></canvas>
+      </section>
+
+      <section class="card circ-card">
+        <div class="card-head">
+          <h3>Mood map</h3>
+          <label class="toggle"><input id="tg-sources" type="checkbox" checked> sources</label>
+        </div>
+        <canvas id="cv-circ" class="cv square" aria-label="Valence-arousal circumplex with the current position"></canvas>
+      </section>
+    </div>
+
+    <div class="grid-lower">
+      <section class="card">
+        <div class="card-head"><h3>Emotions right now</h3></div>
+        <ul id="emo-bars" class="emo-bars"></ul>
+      </section>
+      <section class="card">
+        <div class="card-head"><h3>What each analyzer hears</h3></div>
+        <ul id="sources" class="sources"></ul>
+      </section>
+      <section class="card transcript-card">
+        <div class="card-head"><h3>Transcript</h3><span id="lang" class="chip" hidden></span></div>
+        <div id="transcript" class="transcript"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-head"><h3>Overall read</h3></div>
+      <div id="stats" class="stats"></div>
+      <div class="share-wrap">
+        <div class="share-label muted small">Share of time by dominant emotion</div>
+        <div id="share" class="share"></div>
+      </div>
+    </section>
+
+    <div class="grid-lower two">
+      <section class="card">
+        <div class="card-head"><h3>Key moments</h3><span class="muted small">click to jump</span></div>
+        <ol id="moments" class="moments"></ol>
+      </section>
+      <section class="card">
+        <div class="card-head"><h3>Pipeline</h3></div>
+        <table class="pipeline"><tbody id="pipeline"></tbody></table>
+      </section>
+    </div>
+
+    <audio id="audio" preload="auto"></audio>
+  </main>
+
+  <div id="tooltip" class="tooltip" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+  <footer class="foot muted small">tonely · open source · runs entirely on your machine</footer>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
